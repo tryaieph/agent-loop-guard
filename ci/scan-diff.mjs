@@ -18,10 +18,11 @@ function getDiff(base, head) {
   )
 }
 
-// Test fixtures intentionally embed malicious-looking pattern strings as
-// literal test input, so they are excluded from the scan to avoid the guard
-// flagging its own test corpus as a false positive.
-const TEST_FILE_RE = /\.(test|spec)\.[cm]?[jt]sx?$/
+// Test fixtures and Markdown docs intentionally embed malicious-looking
+// pattern strings as literal example/test input, so they are excluded from
+// the scan to avoid the guard flagging its own test corpus or documentation
+// examples as a false positive.
+const TEST_FILE_RE = /\.(test|spec)\.[cm]?[jt]sx?$|\.md$/
 
 function extractAddedLines(diffText) {
   const lines = diffText.split('\n')
