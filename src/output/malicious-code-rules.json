@@ -1,0 +1,80 @@
+[
+  {
+    "id": "encoded_exec_eval_atob",
+    "category": "encoded_execution",
+    "pattern": "eval\\s*\\(\\s*atob\\s*\\(",
+    "flags": "i"
+  },
+  {
+    "id": "encoded_exec_function_atob",
+    "category": "encoded_execution",
+    "pattern": "new\\s+Function\\s*\\(\\s*atob\\s*\\(",
+    "flags": "i"
+  },
+  {
+    "id": "encoded_exec_base64_buffer",
+    "category": "encoded_execution",
+    "pattern": "Buffer\\.from\\s*\\([^)]*,\\s*['\"]base64['\"]\\s*\\)\\s*\\.toString\\s*\\([^)]*\\)\\s*;?\\s*(eval|exec)",
+    "flags": "i"
+  },
+  {
+    "id": "unknown_domain_fetch",
+    "category": "network_exfiltration",
+    "pattern": "fetch\\s*\\(\\s*['\"]https?:\\/\\/(?!localhost|127\\.0\\.0\\.1|api\\.anthropic\\.com|api\\.openai\\.com)[^'\"]+['\"]",
+    "flags": "i"
+  },
+  {
+    "id": "unknown_domain_xhr",
+    "category": "network_exfiltration",
+    "pattern": "XMLHttpRequest\\s*\\(\\s*\\)[\\s\\S]{0,80}\\.open\\s*\\(\\s*['\"](GET|POST)['\"]\\s*,\\s*['\"]https?:\\/\\/(?!localhost|127\\.0\\.0\\.1)",
+    "flags": "i"
+  },
+  {
+    "id": "curl_pipe_bash",
+    "category": "pipe_execution",
+    "pattern": "curl\\s+[^|]*\\|\\s*(sudo\\s+)?(bash|sh|zsh)\\b",
+    "flags": "i"
+  },
+  {
+    "id": "wget_pipe_sh",
+    "category": "pipe_execution",
+    "pattern": "wget\\s+[^|]*-O\\s*-[^|]*\\|\\s*(sudo\\s+)?(bash|sh|zsh)\\b",
+    "flags": "i"
+  },
+  {
+    "id": "hardcoded_ip_send",
+    "category": "hardcoded_ip_exfiltration",
+    "pattern": "(https?:\\/\\/)?\\b(?!127\\.0\\.0\\.1|0\\.0\\.0\\.0)(\\d{1,3}\\.){3}\\d{1,3}\\b[^\\s'\"]*",
+    "flags": "i"
+  },
+  {
+    "id": "hardcoded_ip_socket",
+    "category": "hardcoded_ip_exfiltration",
+    "pattern": "socket\\.connect\\s*\\(\\s*\\(?\\s*['\"](\\d{1,3}\\.){3}\\d{1,3}['\"]",
+    "flags": "i"
+  },
+  {
+    "id": "suspicious_postinstall_curl",
+    "category": "suspicious_postinstall",
+    "pattern": "\"postinstall\"\\s*:\\s*\"[^\"]*(curl|wget)\\b[^\"]*\"",
+    "flags": "i"
+  },
+  {
+    "id": "suspicious_postinstall_download_exec",
+    "category": "suspicious_postinstall",
+    "pattern": "\"(postinstall|preinstall)\"\\s*:\\s*\"[^\"]*(node\\s+-e|eval)\\b[^\"]*\"",
+    "flags": "i"
+  },
+  {
+    "id": "obfuscated_hex_charcode",
+    "category": "obfuscation",
+    "pattern": "String\\.fromCharCode\\s*\\(\\s*(0x[0-9a-f]{1,2}\\s*,\\s*){5,}",
+    "flags": "i"
+  },
+  {
+    "id": "obfuscated_unescape_percent",
+    "category": "obfuscation",
+    "pattern": "eval\\s*\\(\\s*unescape\\s*\\(\\s*['\"](%[0-9a-f]{2}){5,}",
+    "flags": "i"
+  }
+]
