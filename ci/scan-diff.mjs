@@ -10,7 +10,11 @@ const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../dist/output/maliciousCodeDetector.js')
 
 function getDiff(base, head) {
-  const range = base && head ? `${base}...${head}` : 'HEAD~1...HEAD'
+  const ZERO_SHA = '0000000000000000000000000000000000000000'
+  // 初回push（親なし）や未指定時は base がゼロSHA/空になり
+  // range 解決に失敗するため、直前コミットとの差分にフォールバックする。
+  const validBase = base && base !== ZERO_SHA
+  const range = validBase && head ? `${base}...${head}` : 'HEAD~1...HEAD'
   return execFileSync(
     'git',
     ['diff', range, '--unified=0', '--no-color'],
