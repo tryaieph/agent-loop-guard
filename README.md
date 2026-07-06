@@ -42,7 +42,7 @@ flagged content) is out of scope for this repository. See
 ## Install
 
 ```bash
-git clone <this-repo-url> agent-loop-guard
+git clone https://github.com/tryaieph/agent-loop-guard.git agent-loop-guard
 cd agent-loop-guard
 npm install
 npm run build
