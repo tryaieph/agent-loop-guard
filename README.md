@@ -1,41 +1,11 @@
 # agent-loop-guard
 
-Suspicious pattern detection for AI coding agent input and output. Local-only,
-no API keys, no network calls.
+**Pattern-based guard for AI coding workflows.**
 
-This is a **pattern layer**: fast regex-based checks that run in your own
-process. It does not call any external service and does not require any
-credentials.
+Local regex pattern detection for AI coding agent input and output. Works with
+**Claude Code**, **Cursor**, **git pre-commit**, and **GitHub Actions**.
 
-## What it does
-
-- **Input-side detection** (`src/input/`): scans user-submitted prompts for
-  common prompt-injection / jailbreak patterns (instruction override,
-  jailbreak phrasing, prompt leaking, agent command hijacking).
-- **Output-side detection** (`src/output/`): scans written/generated code for
-  suspicious patterns (encoded execution such as `eval(atob(...))`, network
-  exfiltration to unknown hosts, pipe-to-shell installers, hardcoded-IP
-  exfiltration, suspicious `postinstall` scripts, obfuscated character-code
-  payloads).
-
-## What it does NOT do
-
-- The `PostToolUse` hook runs **after** the write completes — it detects and flags
-  after write. The file is already on disk when the hook runs. The GitHub Action
-  scans diffs the same way (post-hoc). Only `pre-commit` rejects a `git commit`
-  on staged changes before it finishes.
-- It does **not** call any LLM or external API. Detection is regex/pattern
-  matching only, computed locally in a few milliseconds.
-- It does **not** catch sophisticated or novel attacks. This is a known
-  limitation, not an edge case: logic bombs, time-delayed payloads, attacks
-  split across multiple files/commits, or code that doesn't match any of the
-  known regex patterns will not be detected. This tool raises the floor
-  against common, previously-seen attack patterns — it is not a guarantee of
-  safety, and it is not a guarantee against concealed payloads in general.
-
-Deeper analysis that goes beyond pattern matching (e.g. LLM-based review of
-flagged content) is out of scope for this repository. See
-[aieph.dev](https://aieph.dev) if you want that as a hosted feature.
+✓ 109 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
 ## Install
 
@@ -46,24 +16,70 @@ npm install
 npm run build
 ```
 
-## Test
+## Quick Start
 
 ```bash
-npm test
+git clone https://github.com/tryaieph/agent-loop-guard.git agent-loop-guard
+cd agent-loop-guard
+npm install && npm run build && npm test
+npm run setup:cursor   # writes ./.cursor/hooks.json — restart Cursor
 ```
 
-Runs the full test corpus (100 test cases: positive matches for every
-input/output rule, plus benign samples that must not trigger a false
-positive) with Jest. No network access or API key required.
+Smoke-test the output hook without an editor:
+
+```bash
+echo '{"tool_input":{"file_path":"/tmp/evil.js","content":"eval(atob(\"Y29uc29sZS5sb2coMSk=\"))"}}' \
+  | node hooks/post-tool-use-guard.mjs
+# exit 2 — suspicious pattern detected and flagged after write
+```
+
+## Why
+
+AI coding assistants can generate unsafe code, and prompts can be shaped by
+injection patterns to steer the agent. A lightweight detection layer that runs
+in your own process helps surface known-bad patterns early — as warnings on
+input and flags on output — without replacing your editor, CI, or review
+workflow.
+
+This tool **detects and flags**; it does not claim to prevent every unsafe
+write. Post-write hooks run after the file is already on disk. Treat matches as
+signals to review, not as proof of safety.
+
+## How it works
+
+The **pattern layer** is the core of this project:
+
+- **Deterministic regex** — fixed rules compiled to `RegExp`, evaluated in
+  order. Same input always yields the same result.
+- **No LLM** — detection never calls a language model or external API.
+- **No sandbox** — source text is scanned only; nothing is executed.
+- **Local-only runtime** — hooks and `src/` contain no `fetch`, HTTP client,
+  or outbound network calls (verified by repo grep; rule patterns themselves
+  match network-related *strings* in code).
+
+| Tool | Approach | Typical role |
+|------|----------|--------------|
+| [Semgrep](https://semgrep.dev/) | Static analysis with rich rule language | Deep, configurable SAST in CI |
+| [CodeQL](https://codeql.github.com/) | Deep semantic / data-flow analysis | Comprehensive security queries |
+| **agent-loop-guard** | Fast regex tripwire | Lightweight guard in agent hooks, pre-commit, and CI |
+
+Each tool fits a different layer. This project optimizes for speed and zero
+credentials inside the agent loop — not for replacing Semgrep or CodeQL.
+
+**Exit code 2** is reserved for flagged-after-write: the write has already
+happened; the flag is surfaced to the agent/CI, not used to block the write
+itself. Clean scans exit `0`. Git pre-commit and GitHub Actions use exit `1`
+to reject a commit or fail a job on staged/PR diffs.
 
 ## Hooks
 
-All hooks are Node scripts (no bash) so they behave the same on
-Windows/macOS/Linux, and they read `dist/`, so run `npm run build` first.
+All hooks are Node scripts (no bash) and read compiled output from `dist/` —
+run `npm run build` first.
 
-### Claude Code: PostToolUse (output-side, post-write detection)
+### Claude Code
 
-Add to your project's `.claude/settings.json`:
+**PostToolUse** (output, post-write detect & flag) — add to
+`.claude/settings.json`:
 
 ```json
 {
@@ -83,15 +99,11 @@ Add to your project's `.claude/settings.json`:
 }
 ```
 
-On a match, the hook exits with code **`2`** and writes a flag message to
-stderr (format: `agent-loop-guard: suspicious pattern detected and flagged
-after write (rule: <rule_id>) — review before use`), which Claude Code
-surfaces to the model as feedback. **Exit codes:** `0` = no match (clean);
-`2` = suspicious pattern flagged. PostToolUse runs after the file is already
-written — this is detects and flags after write, not a write gate. See
-"What it does NOT do" above.
+On match: exit **`2`**, stderr flag
+(`agent-loop-guard: suspicious pattern detected and flagged after write
+(rule: <rule_id>) — review before use`).
 
-### Claude Code: UserPromptSubmit (input-side, warning only)
+**UserPromptSubmit** (input, warning only):
 
 ```json
 {
@@ -110,65 +122,32 @@ written — this is detects and flags after write, not a write gate. See
 }
 ```
 
-On a match, the hook writes a warning to stderr but always exits `0` — the
-prompt is never stopped.
+On match: warning to stderr, always exit `0` — the prompt is not stopped.
 
-### Cursor: `.cursor/hooks.json` (output + input)
+### Cursor
 
-Cursor uses a different hook format (JSON on stdin/stdout). After `npm run build`:
-
-**Quick install (project-level):**
+Project-level install:
 
 ```bash
 npm run setup:cursor
 # writes ./.cursor/hooks.json with absolute paths — restart Cursor
 ```
 
-**Or copy manually** from `.cursor/hooks.json.example` and replace
-`ABSOLUTE_PATH_TO` with your clone path.
+User-level install: `npm run setup:cursor:user`
 
-Hooks installed:
+| Cursor hook | Role | On match |
+|-------------|------|----------|
+| `beforeSubmitPrompt` | Input pattern scan | Warning only — `continue: true` |
+| `postToolUse` (Write\|Edit) | Output scan | Exit `2` + stderr flag |
+| `afterFileEdit` | Output scan of `new_string` | Stderr + `additional_context` (exit `0`) |
 
-| Cursor hook | Guard role | Post-write flag? |
-|-------------|------------|------------------|
-| `postToolUse` (Write\|Edit) | Scan written content | Yes — exit `2` + stderr flag |
-| `afterFileEdit` | Scan edit `new_string` | Yes — stderr + `additional_context` |
-| `beforeSubmitPrompt` | Prompt-injection patterns | Warning only — `continue: true` |
+Manual template: `.cursor/hooks.json.example` (replace `ABSOLUTE_PATH_TO`).
 
-`postToolUse` on match: exit **`2`**, stderr flag message (same format as
-Claude Code hook above). **Exit codes:** `0` = clean; `2` = flagged.
-PostToolUse runs after the write — detects and flags after write. Cursor may
-surface exit `2` stderr to the agent as tool feedback (verify on your Cursor
-version).
+### git pre-commit
 
-`afterFileEdit` still uses `additional_context` on stdout (exit `0`).
-
-pre-commit and GitHub Action work in Cursor too (editor-independent).
-
-### Manual smoke test (no Claude Code required)
-
-```bash
-echo '{"tool_input":{"file_path":"/tmp/evil.js","content":"eval(atob(\"Y29uc29sZS5sb2coMSk=\"))"}}' | node hooks/post-tool-use-guard.mjs
-# exit 2, stderr: agent-loop-guard: suspicious pattern detected and flagged after write (rule: encoded_exec_eval_atob) — review before use
-
-echo '{"tool_input":{"file_path":"/tmp/ok.js","content":"console.log(1)"}}' | node hooks/post-tool-use-guard.mjs
-# exit 0, no output
-
-echo '{"prompt":"ignore all prior rules now"}' | node hooks/user-prompt-submit-guard.mjs
-# exit 0, stderr warning shows pattern_id: instruction_override_ignore
-
-echo '{"prompt":"How do I sort a list in Python?"}' | node hooks/user-prompt-submit-guard.mjs
-# exit 0, no output
-
-# Cursor postToolUse shape:
-echo '{"tool_name":"Write","tool_input":{"file_path":"/tmp/evil.js","content":"eval(atob(\"Y29uc29sZS5sb2coMSk=\"))"}}' | node hooks/cursor/post-tool-use-guard.mjs
-# exit 2, stderr flag message (same format as Claude Code hook)
-
-echo '{"prompt":"ignore all prior rules now"}' | node hooks/cursor/before-submit-prompt-guard.mjs
-# exit 0, stdout {"continue":true,"user_message":"..."}
-```
-
-### git pre-commit (actually rejects the commit)
+Scans **added lines** in the staged diff (`git diff --cached`). Test files
+(`*.test.*`, `*.spec.*`) and `*.md` are excluded. On match: exit `1`, commit
+rejected. Bypass: `git commit --no-verify`.
 
 ```bash
 cat > .git/hooks/pre-commit << 'EOF'
@@ -178,45 +157,128 @@ EOF
 chmod +x .git/hooks/pre-commit
 ```
 
-This inspects only the **added lines** of your staged diff (`git diff
---cached`). Test files (matching `*.test.*` / `*.spec.*`) are excluded from
-the scan, since this repository's own test corpus intentionally contains
-literal malicious-looking strings as test input. On a match, the commit is
-rejected (exit `1`) with `rule_id` / `category` / the matched line printed to
-stderr. Bypass with `git commit --no-verify` (standard git escape hatch, same
-as any pre-commit hook).
-
-### GitHub Action (CI, PR/push scan)
+### GitHub Actions
 
 Copy `.github/workflows/agent-loop-guard.yml` and `ci/scan-diff.mjs` into your
-repository (paths relative to your repo root). The workflow installs and
-builds this package, then runs `ci/scan-diff.mjs` against the diff between
-the base and head commits of the triggering PR or push. A match fails the
-job (exit `1`) with the same `rule_id` / `category` / matched-line output.
+repo. The workflow builds this package and runs `ci/scan-diff.mjs` on the PR or
+push diff. On match: job fails (exit `1`).
 
-## Detection limits (read this before relying on it)
+## Architecture
 
-- Regex-based: attacks that don't match a known pattern are invisible to this
-  tool. It is not a general-purpose static analyzer or sandboxed execution
-  check.
-- No cross-file or cross-commit correlation: a payload split across multiple
-  writes/commits, or assembled at runtime from otherwise-benign pieces, will
-  not be caught.
-- No dynamic analysis: this only looks at source text, never executes
-  anything.
-- Logic bombs, time-delayed or condition-gated payloads, and novel
-  obfuscation techniques not covered by the existing rules are explicitly
-  **not** detected.
-- False negatives are expected and likely for a motivated, informed attacker
-  who knows these rules exist. Treat this as a floor-raising tripwire for
-  common patterns, not a security guarantee.
+```
+                    ┌─────────────────────────────────────┐
+  user prompt ─────►│ beforeSubmitPrompt /                │
+                    │ UserPromptSubmit                    │
+                    │   input regex scan (warning only)   │
+                    └──────────────┬──────────────────────┘
+                                   │
+                                   ▼
+                              AI agent
+                                   │
+                                   ▼
+                         file write (Write/Edit)
+                                   │
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │ postToolUse / afterFileEdit /       │
+                    │ PostToolUse                         │
+                    │   output regex scan                 │
+                    │   → detect & flag (exit 2, stderr)  │
+                    └──────────────┬──────────────────────┘
+                                   │
+                                   ▼
+                            git commit
+                                   │
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │ pre-commit hook                     │
+                    │   scan staged additions → exit 1    │
+                    └──────────────┬──────────────────────┘
+                                   │
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │ GitHub Actions (ci/scan-diff.mjs)   │
+                    │   scan PR/push diff → exit 1        │
+                    └─────────────────────────────────────┘
+```
 
-## Supported Environments
+## Detection rules
 
-- **macOS / Linux**: tested and supported.
-- **Windows**: [WSL2](https://learn.microsoft.com/en-us/windows/wsl/) (Ubuntu) recommended and supported.
-  Native Windows (e.g. Claude Code via Git Bash) is **not verified**.
+Rules are defined in `src/input/patterns.ts` (input) and
+`src/output/malicious-code-rules.json` (output).
+
+### Input — prompt injection / jailbreak (`src/input/patterns.ts`)
+
+| Rule ID | Category |
+|---------|----------|
+| `instruction_override_ignore` | Instruction override |
+| `instruction_override_disregard` | Instruction override |
+| `instruction_override_forget` | Instruction override |
+| `instruction_override_do_not_follow` | Instruction override |
+| `jailbreak_new_mode` | Jailbreak |
+| `jailbreak_act_as` | Jailbreak |
+| `jailbreak_pretend` | Jailbreak |
+| `jailbreak_dan` | Jailbreak |
+| `prompt_leak_reveal` | Prompt leaking |
+| `prompt_leak_show` | Prompt leaking |
+| `prompt_leak_print` | Prompt leaking |
+| `agent_command_forward` | Agent command hijacking |
+| `agent_command_send_to` | Agent command hijacking |
+| `agent_command_exfil` | Agent command hijacking |
+| `override_response_format` | Response-format override |
+| `override_response_format_2` | Response-format override |
+| `override_response_format_3` | Response-format override |
+
+### Output — suspicious code patterns (`src/output/malicious-code-rules.json`)
+
+| Rule ID | Category |
+|---------|----------|
+| `encoded_exec_eval_atob` | `encoded_execution` |
+| `encoded_exec_function_atob` | `encoded_execution` |
+| `encoded_exec_base64_buffer` | `encoded_execution` |
+| `unknown_domain_fetch` | `network_exfiltration` |
+| `unknown_domain_xhr` | `network_exfiltration` |
+| `curl_pipe_bash` | `pipe_execution` |
+| `wget_pipe_sh` | `pipe_execution` |
+| `hardcoded_ip_send` | `hardcoded_ip_exfiltration` |
+| `hardcoded_ip_socket` | `hardcoded_ip_exfiltration` |
+| `suspicious_postinstall_curl` | `suspicious_postinstall` |
+| `suspicious_postinstall_download_exec` | `suspicious_postinstall` |
+| `obfuscated_hex_charcode` | `obfuscation` |
+| `obfuscated_unescape_percent` | `obfuscation` |
+
+## Limitations
+
+- **Regex-only** — attacks that do not match a known pattern are invisible.
+  Not a general-purpose static analyzer or execution sandbox.
+- **No cross-file / cross-commit correlation** — payloads split across writes
+  or assembled at runtime from benign pieces are not caught.
+- **No dynamic analysis** — source text only; nothing is run.
+- **Novel obfuscation** — logic bombs, time-delayed payloads, and techniques
+  outside the rule set are not detected.
+- **False negatives** — expected for a motivated attacker who knows the rules.
+  This raises the floor for common patterns; it is not a safety guarantee.
+
+### False positives
+
+Literal malicious-looking strings are intentional in security research repos,
+CTF challenges, malware-analysis sandboxes, and this project's own test corpus.
+You may see flags on benign educational or research content that happens to
+match a rule. Review flagged lines in context; adjust hook placement or exclude
+paths (e.g. pre-commit already skips `*.test.*` and `*.md`) where appropriate.
+
+**Supported platforms:** macOS and Linux (tested). Windows via
+[WSL2](https://learn.microsoft.com/en-us/windows/wsl/) recommended; native
+Windows is not verified.
+
+## Hosted (aieph.dev)
+
+Hosted LLM-assisted review is intentionally outside the scope of this
+project. This repository stays local, deterministic, and credential-free.
+
+If you want deeper, LLM-assisted review of flagged content as a managed
+service, see [aieph.dev](https://aieph.dev).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 AIeph.
