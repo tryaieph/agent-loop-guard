@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-// Cursor postToolUse — output-side guard (Write|Edit). Post-write detection only.
+// Cursor postToolUse — output-side guard (Write|Edit). Detects and flags after write.
 import {
   readStdin,
   loadDetectors,
   extractPostToolUseContent,
-  formatOutputDetection,
-  emitPostWriteFeedback,
+  emitFlagExit,
   scanContent,
 } from './_shared.mjs'
 
@@ -19,10 +18,10 @@ try {
   process.exit(0)
 }
 
-const { content, filePath } = extractPostToolUseContent(payload)
+const { content } = extractPostToolUseContent(payload)
 const hit = scanContent(content, detectMaliciousCode)
 if (!hit) {
   process.exit(0)
 }
 
-emitPostWriteFeedback(formatOutputDetection({ filePath, ...hit }))
+emitFlagExit(hit.ruleId)

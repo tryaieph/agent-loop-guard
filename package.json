@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc -p ./",
-    "test": "jest && node --test hooks/cursor/extract.test.mjs",
+    "test": "jest && node --test hooks/cursor/extract.test.mjs hooks/cursor/post-tool-use-exit.test.mjs",
     "setup:cursor": "node scripts/setup-cursor.mjs project",
     "setup:cursor:user": "node scripts/setup-cursor.mjs user"
   },

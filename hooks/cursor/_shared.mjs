@@ -81,13 +81,25 @@ export function lineAt(text, index) {
   return { lineNumber, line }
 }
 
+export function formatFlagWarning(ruleId) {
+  return (
+    `agent-loop-guard: suspicious pattern detected and flagged after write ` +
+    `(rule: ${ruleId}) — review before use`
+  )
+}
+
+export function emitFlagExit(ruleId) {
+  process.stderr.write(`${formatFlagWarning(ruleId)}\n`)
+  process.exit(2)
+}
+
 export function formatOutputDetection({ filePath, ruleId, category, lineNumber, line }) {
   return (
     `[agent-loop-guard] suspicious pattern detected after write to ${filePath}\n` +
     `  rule_id:  ${ruleId}\n` +
     `  category: ${category}\n` +
     `  line ${lineNumber}: ${line.trim()}\n` +
-    `Note: the file was already written — this is post-write detection, not prevention.`
+    `Note: detects and flags after write.`
   )
 }
 
