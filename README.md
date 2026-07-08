@@ -7,15 +7,6 @@ Local regex pattern detection for AI coding agent input and output. Works with
 
 ✓ 109 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
-## Install
-
-```bash
-git clone https://github.com/tryaieph/agent-loop-guard.git agent-loop-guard
-cd agent-loop-guard
-npm install
-npm run build
-```
-
 ## Quick Start
 
 ```bash
@@ -268,8 +259,8 @@ match a rule. Review flagged lines in context; adjust hook placement or exclude
 paths (e.g. pre-commit already skips `*.test.*` and `*.md`) where appropriate.
 
 **Supported platforms:** macOS and Linux (tested). Windows via
-[WSL2](https://learn.microsoft.com/en-us/windows/wsl/) recommended; native
-Windows is not verified.
+[WSL2](https://learn.microsoft.com/en-us/windows/wsl/) is expected to work but
+not yet verified; native Windows is unsupported.
 
 ## Hosted (aieph.dev)
 
