@@ -88,8 +88,15 @@ export function formatFlagWarning(ruleId) {
   )
 }
 
+export function formatStderrLineForTty(message) {
+  if (process.stderr.isTTY) {
+    return `\x1b[31m${message}\x1b[0m`
+  }
+  return message
+}
+
 export function emitFlagExit(ruleId) {
-  process.stderr.write(`${formatFlagWarning(ruleId)}\n`)
+  process.stderr.write(`${formatStderrLineForTty(formatFlagWarning(ruleId))}\n`)
   process.exit(2)
 }
 

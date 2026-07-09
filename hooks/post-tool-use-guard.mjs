@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // PostToolUse (Write|Edit) exit-side guard. Detects and flags after write.
 import { createRequire } from 'node:module'
+import { emitFlagExit } from './cursor/_shared.mjs'
 
 const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../dist/output/maliciousCodeDetector.js')
@@ -32,9 +33,5 @@ process.stdin.on('end', () => {
     process.exit(0)
   }
 
-  process.stderr.write(
-    `agent-loop-guard: suspicious pattern detected and flagged after write ` +
-    `(rule: ${result.ruleId}) — review before use\n`
-  )
-  process.exit(2)
+  emitFlagExit(result.ruleId)
 })
