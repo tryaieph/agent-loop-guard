@@ -5,13 +5,17 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "agent-loop-guard": "./bin/agent-loop-guard.mjs"
+  },
   "files": [
     "dist",
-    "hooks"
+    "hooks",
+    "bin"
   ],
   "scripts": {
     "build": "tsc -p ./",
-    "test": "jest && node --test hooks/cursor/extract.test.mjs hooks/cursor/post-tool-use-exit.test.mjs",
+    "test": "jest && node --test hooks/cursor/extract.test.mjs hooks/cursor/post-tool-use-exit.test.mjs hooks/pre-tool-use-loop-breaker.test.mjs",
     "setup:cursor": "node scripts/setup-cursor.mjs project",
     "setup:cursor:user": "node scripts/setup-cursor.mjs user"
   },

@@ -5,7 +5,7 @@
 Local regex pattern detection for AI coding agent input and output. Works with
 **Claude Code**, **Cursor**, **git pre-commit**, and **GitHub Actions**.
 
-✓ 109 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
+✓ 122 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
 ## Quick Start
 
@@ -90,9 +90,64 @@ run `npm run build` first.
 }
 ```
 
+See **PreToolUse** loop breaker below for the combined `hooks` example.
+
 On match: exit **`2`**, stderr flag
 (`agent-loop-guard: suspicious pattern detected and flagged after write
 (rule: <rule_id>) — review before use`).
+
+**PreToolUse** (loop circuit breaker — halts runaway agent loops by count) —
+add alongside pattern hooks in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /absolute/path/to/agent-loop-guard/hooks/pre-tool-use-loop-breaker.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /absolute/path/to/agent-loop-guard/hooks/post-tool-use-guard.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Optional limits in `.agent-loop-guard/config.json` (read once per hook
+invocation; defaults `maxToolCallsPerSession: 150`, `maxEditsPerFile: 15`;
+set a limit to `0` to disable that counter):
+
+```json
+{
+  "maxToolCallsPerSession": 150,
+  "maxEditsPerFile": 15
+}
+```
+
+On trip: exit **`2`**, stderr
+(`Loop breaker tripped: <reason>. Review the session transcript. Reset:
+delete .agent-loop-guard/state/ or run agent-loop-guard reset`).
+Halts further tool calls after thresholds are exceeded.
+
+Verified on **Claude Code CLI (interactive and non-interactive modes)**.
+Cursor's built-in agent is out of scope (hook behavior differs). No dollar
+or token cost estimation. Manual acceptance steps:
+[docs/testing.md](docs/testing.md).
 
 **UserPromptSubmit** (input, warning only):
 
@@ -133,6 +188,11 @@ User-level install: `npm run setup:cursor:user`
 | `afterFileEdit` | Output scan of `new_string` | Stderr + `additional_context` (exit `0`) |
 
 Manual template: `.cursor/hooks.json.example` (replace `ABSOLUTE_PATH_TO`).
+
+> ⚠️ **Note**
+> Switching Cursor's built-in Agent to Claude won't make this work — it's not the
+> model, it's how Cursor's Agent relays (or rather, doesn't relay) hook output.
+> On Cursor, run Claude Code CLI inside the integrated terminal instead. That works.
 
 ### git pre-commit
 
