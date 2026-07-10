@@ -10,7 +10,7 @@ export const CONFIG_FILE_NAME = '.agent-loop-guard/config.json'
 export const EDIT_TOOLS = new Set(['Write', 'Edit'])
 
 export const DENY_RESET_HINT =
-  'Reset: delete .agent-loop-guard/state/ or run `agent-loop-guard reset`'
+  'Start a new session, delete .agent-loop-guard/state/, or run `agent-loop-guard reset`.'
 
 export interface LoopBreakerConfig {
   maxToolCallsPerSession: number | null
@@ -132,7 +132,7 @@ export function extractFilePath(payload: PreToolUsePayload): string | null {
 }
 
 export function formatDenyMessage(reason: string): string {
-  return `Loop breaker tripped: ${reason}. Review the session transcript. ${DENY_RESET_HINT}`
+  return `Loop breaker tripped: ${reason}. Review the session transcript.\n${DENY_RESET_HINT}`
 }
 
 export function formatStderrLineForTty(message: string, isTty = process.stderr.isTTY): string {

@@ -143,6 +143,9 @@ describe('processPreToolUse', () => {
     const msg = formatDenyMessage('session tool call limit exceeded (3 > 2)')
     expect(msg).toContain('Loop breaker tripped:')
     expect(msg).toContain('agent-loop-guard reset')
+    expect(msg).toContain('Start a new session')
+    expect(msg).toContain('.agent-loop-guard/state/')
+    expect(msg).toMatch(/\nStart a new session/)
   })
 })
 
