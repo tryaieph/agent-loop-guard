@@ -9,12 +9,23 @@ Local regex pattern detection for AI coding agent input and output. Works with
 
 ## Quick Start
 
+**Claude Code (one-shot — user-level hooks):**
+
 ```bash
-git clone https://github.com/tryaieph/agent-loop-guard.git agent-loop-guard
-cd agent-loop-guard
-npm install && npm run build && npm test
-npm run setup:cursor   # writes ./.cursor/hooks.json — restart Cursor
+(test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard) \
+  && cd ~/agent-loop-guard && npm install && npm run build && npm run setup:claude
+# writes ~/.claude/settings.json — restart Claude Code
 ```
+
+**Cursor (one-shot — user-level hooks):**
+
+```bash
+(test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard) \
+  && cd ~/agent-loop-guard && npm install && npm run build && npm run setup:cursor:user
+# writes ~/.cursor/hooks.json — restart Cursor
+```
+
+Per-project instead: `npm run setup:claude:project` / `npm run setup:cursor` (from the repo root, after build).
 
 Smoke-test the output hook without an editor:
 
