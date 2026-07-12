@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Merges agent-loop-guard hooks into Claude Code settings.json (project or user).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -35,7 +36,7 @@ if (targetArg === 'project') {
   mkdirSync(dir, { recursive: true })
   outPath = path.join(dir, 'settings.json')
 } else if (targetArg === 'user') {
-  const dir = path.join(process.env.HOME ?? '', '.claude')
+  const dir = path.join(os.homedir(), '.claude')
   mkdirSync(dir, { recursive: true })
   outPath = path.join(dir, 'settings.json')
 } else {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Writes .cursor/hooks.json for agent-loop-guard (project or user level).
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -20,7 +21,7 @@ const config = {
 const targetArg = process.argv[2] ?? 'project'
 let outPath
 if (targetArg === 'user') {
-  const dir = path.join(process.env.HOME ?? '', '.cursor')
+  const dir = path.join(os.homedir(), '.cursor')
   mkdirSync(dir, { recursive: true })
   outPath = path.join(dir, 'hooks.json')
 } else {
