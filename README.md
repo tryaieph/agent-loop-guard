@@ -9,21 +9,33 @@ Local regex pattern detection for AI coding agent input and output. Works with
 
 ## Quick Start
 
-**Claude Code (one-shot — user-level hooks):**
+**Claude Code (one-shot — user-level hooks, macOS / Linux / WSL2):**
 
 ```bash
-(test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard) \
-  && cd ~/agent-loop-guard && npm install && npm run build && npm run setup:claude
+test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard
+cd ~/agent-loop-guard && npm install && npm run build && npm run setup:claude
 # writes ~/.claude/settings.json — restart Claude Code
 ```
 
-**Cursor (one-shot — user-level hooks):**
+**Cursor (one-shot — user-level hooks, macOS / Linux):**
 
 ```bash
-(test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard) \
-  && cd ~/agent-loop-guard && npm install && npm run build && npm run setup:cursor:user
+test -d ~/agent-loop-guard/.git || git clone https://github.com/tryaieph/agent-loop-guard.git ~/agent-loop-guard
+cd ~/agent-loop-guard && npm install && npm run build && npm run setup:cursor:user
 # writes ~/.cursor/hooks.json — restart Cursor
 ```
+
+**Cursor on Windows (PowerShell — native Cursor):**
+
+```powershell
+if (-not (Test-Path "$HOME\agent-loop-guard\.git")) {
+  git clone https://github.com/tryaieph/agent-loop-guard.git "$HOME\agent-loop-guard"
+}
+Set-Location $HOME\agent-loop-guard; npm install; npm run build; npm run setup:cursor:user
+# writes %USERPROFILE%\.cursor\hooks.json — fully quit & restart Cursor
+```
+
+`test -d … || git clone …` means “clone only if the folder is missing” (valid shell, not a typo).
 
 Per-project instead: `npm run setup:claude:project` / `npm run setup:cursor` (from the repo root, after build).
 
