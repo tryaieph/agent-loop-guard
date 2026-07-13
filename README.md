@@ -2,8 +2,10 @@
 
 **Pattern-based guard for AI coding workflows.**
 
-Local regex pattern detection for AI coding agent input and output. Works with
-**Claude Code**, **Cursor**, **git pre-commit**, and **GitHub Actions**.
+Local regex pattern detection for AI coding agent input and output. **Not Claude
+Code-only** — hooks are verified on Claude Code and Cursor; **git pre-commit**
+and **GitHub Actions** inspect the diff, so they work no matter which agent
+wrote the code.
 
 ✓ 122 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
