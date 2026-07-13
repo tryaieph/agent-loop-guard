@@ -5,6 +5,7 @@ import { emitFlagExit } from './cursor/_shared.mjs'
 
 const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../dist/output/maliciousCodeDetector.js')
+const { normalizeGuardEvent, appendGuardEvent } = require('../dist/events/schema.js')
 
 function extractContent(toolInput) {
   if (!toolInput) return ''
@@ -32,6 +33,18 @@ process.stdin.on('end', () => {
   if (!result.matched) {
     process.exit(0)
   }
+
+  const filePath = payload.tool_input?.file_path
+  appendGuardEvent(
+    normalizeGuardEvent({
+      source: 'claude-code',
+      event: 'post-write-scan',
+      file_path: filePath,
+      findings: [{ rule_id: result.ruleId, category: result.category }],
+      session_id: payload.session_id,
+    }),
+    payload.cwd || process.cwd()
+  )
 
   emitFlagExit(result.ruleId)
 })

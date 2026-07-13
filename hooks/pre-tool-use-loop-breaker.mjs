@@ -3,7 +3,8 @@
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { formatDenyMessage, formatStderrLineForTty, processPreToolUse } = require('../dist/loopBreaker.js')
+const { formatDenyMessage, formatStderrLineForTty, processPreToolUse, extractFilePath } = require('../dist/loopBreaker.js')
+const { normalizeGuardEvent, appendGuardEvent } = require('../dist/events/schema.js')
 
 let input = ''
 process.stdin.on('data', (chunk) => { input += chunk })
@@ -19,6 +20,16 @@ process.stdin.on('end', () => {
   const result = processPreToolUse(payload, cwd)
 
   if (result.deny) {
+    appendGuardEvent(
+      normalizeGuardEvent({
+        source: 'claude-code',
+        event: 'pre-exec-block',
+        file_path: extractFilePath(payload) ?? undefined,
+        findings: [{ rule_id: 'loop_breaker_tripped' }],
+        session_id: payload.session_id,
+      }),
+      cwd
+    )
     const message = formatDenyMessage(result.reason ?? 'threshold exceeded')
     process.stderr.write(`${formatStderrLineForTty(message)}\n`)
     process.exit(2)

@@ -1,0 +1,17 @@
+[
+  { "name": "event-stream", "note": "flatmap-stream backdoor, npm 2018" },
+  { "name": "flatmap-stream", "note": "event-stream supply-chain backdoor, npm 2018" },
+  { "name": "eslint-scope", "note": "compromised publish (credential stealer), npm 2018" },
+  { "name": "eslint-config-eslint", "note": "compromised alongside eslint-scope, npm 2018" },
+  { "name": "crossenv", "note": "typosquat of cross-env, credential exfiltration" },
+  { "name": "cross-env.js", "note": "typosquat of cross-env" },
+  { "name": "d3.js", "note": "typosquat of d3" },
+  { "name": "fabric-js", "note": "typosquat of fabric" },
+  { "name": "mongose", "note": "typosquat of mongoose" },
+  { "name": "node-ipc", "note": "peacenotwar protestware/wiper, versions 10.1.1-10.1.3" },
+  { "name": "coa", "note": "compromised publish (credential stealer), npm 2021" },
+  { "name": "rc", "note": "compromised publish alongside coa, npm 2021" },
+  { "name": "ua-parser-js", "note": "compromised publish (cryptominer/stealer), npm 2021" },
+  { "name": "colors", "note": "protestware infinite loop, versions 1.4.44-1.4.45" },
+  { "name": "faker", "note": "deliberately broken package, npm 2022" }
+]

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      { "command": "node ABSOLUTE_PATH_TO/agent-loop-guard/bin/agent-loop-guard.mjs cursor-hook" }
+    ],
+    "beforeShellExecution": [
+      { "command": "node ABSOLUTE_PATH_TO/agent-loop-guard/bin/agent-loop-guard.mjs cursor-hook" }
+    ],
+    "beforeMCPExecution": [
+      { "command": "node ABSOLUTE_PATH_TO/agent-loop-guard/bin/agent-loop-guard.mjs cursor-hook" }
+    ]
+  }
+}

@@ -7,9 +7,32 @@ Code-only** — hooks are verified on Claude Code and Cursor; **git pre-commit**
 and **GitHub Actions** inspect the diff, so they work no matter which agent
 wrote the code.
 
-✓ 122 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
+✓ 147 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
 ## Quick Start
+
+Recommended install order: **pre-commit first** (it's the one path that
+covers every agent, since it inspects the diff regardless of which tool wrote
+it), then **CI** as a backstop on PRs/pushes, then the per-agent adapters
+below if you also want in-editor feedback.
+
+**git pre-commit (primary path — works no matter which agent wrote the code):**
+
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/sh
+node "$(git rev-parse --show-toplevel)/hooks/pre-commit/pre-commit-guard.mjs"
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+Requires `npm install && npm run build` in a local clone of this repo first
+(see **Hooks → git pre-commit** below for the full path).
+
+**GitHub Actions (CI backstop on PRs/pushes):**
+
+Copy `.github/workflows/agent-loop-guard.yml` and `ci/scan-diff.mjs` into your
+repo (see **Hooks → GitHub Actions** below).
 
 **Claude Code (one-shot — user-level hooks, macOS / Linux / WSL2):**
 
@@ -72,6 +95,10 @@ The **pattern layer** is the core of this project:
 - **Local-only runtime** — hooks and `src/` contain no `fetch`, HTTP client,
   or outbound network calls (verified by repo grep; rule patterns themselves
   match network-related *strings* in code).
+- **Local structured log** — every adapter (Claude Code, Cursor, pre-commit,
+  CI) also appends a normalized `GuardEvent` JSON line to
+  `.agent-loop-guard/events.jsonl` on a finding, alongside its existing
+  human-readable output. This file stays on disk; nothing is transmitted.
 
 | Tool | Approach | Typical role |
 |------|----------|--------------|
@@ -90,7 +117,29 @@ to reject a commit or fail a job on staged/PR diffs.
 ## Hooks
 
 All hooks are Node scripts (no bash) and read compiled output from `dist/` —
-run `npm run build` first.
+run `npm run build` first. Recommended order below: pre-commit first (works
+for every agent), then CI, then the per-agent adapters.
+
+### git pre-commit
+
+Scans **added lines** in the staged diff (`git diff --cached`). Test files
+(`*.test.*`, `*.spec.*`) and `*.md` are excluded. On match: **blocks flagged
+code from being committed** — exit `1`, commit rejected. Bypass:
+`git commit --no-verify`.
+
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/sh
+node "$(git rev-parse --show-toplevel)/hooks/pre-commit/pre-commit-guard.mjs"
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+### GitHub Actions
+
+Copy `.github/workflows/agent-loop-guard.yml` and `ci/scan-diff.mjs` into your
+repo. The workflow builds this package and runs `ci/scan-diff.mjs` on the PR or
+push diff. On match: job fails (exit `1`).
 
 ### Claude Code
 
@@ -210,34 +259,23 @@ User-level install: `npm run setup:cursor:user`
 |-------------|------|----------|
 | `beforeSubmitPrompt` | Input pattern scan | Warning only — `continue: true` |
 | `postToolUse` (Write\|Edit) | Output scan | Exit `2` + stderr flag |
-| `afterFileEdit` | Output scan of `new_string` | Stderr + `additional_context` (exit `0`) |
+| `afterFileEdit` | Output scan of `new_string`, **detects and flags after write** | Stderr + `additional_context` (exit `0`, cannot block) |
 
 Manual template: `.cursor/hooks.json.example` (replace `ABSOLUTE_PATH_TO`).
+
+**Known-malicious-install guard** — a separate adapter registers
+`afterFileEdit`, `beforeShellExecution`, and `beforeMCPExecution` behind one
+entry point (`agent-loop-guard cursor-hook`). The `before*` hooks **block
+execution of known-malicious installs** (a small static list of npm packages
+with a documented history of malicious publishes) before the command or MCP
+tool call runs; `afterFileEdit` here is informational only, recording
+findings to `.agent-loop-guard/events.jsonl` (exit `0`, cannot block).
+Full beginner setup: [docs/cursor.md](docs/cursor.md).
 
 > ⚠️ **Note**
 > Switching Cursor's built-in Agent to Claude won't make this work — it's not the
 > model, it's how Cursor's Agent relays (or rather, doesn't relay) hook output.
 > On Cursor, run Claude Code CLI inside the integrated terminal instead. That works.
-
-### git pre-commit
-
-Scans **added lines** in the staged diff (`git diff --cached`). Test files
-(`*.test.*`, `*.spec.*`) and `*.md` are excluded. On match: exit `1`, commit
-rejected. Bypass: `git commit --no-verify`.
-
-```bash
-cat > .git/hooks/pre-commit << 'EOF'
-#!/bin/sh
-node "$(git rev-parse --show-toplevel)/hooks/pre-commit/pre-commit-guard.mjs"
-EOF
-chmod +x .git/hooks/pre-commit
-```
-
-### GitHub Actions
-
-Copy `.github/workflows/agent-loop-guard.yml` and `ci/scan-diff.mjs` into your
-repo. The workflow builds this package and runs `ci/scan-diff.mjs` on the PR or
-push diff. On match: job fails (exit `1`).
 
 ## Architecture
 

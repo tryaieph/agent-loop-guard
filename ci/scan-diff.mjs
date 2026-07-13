@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../dist/output/maliciousCodeDetector.js')
+const { normalizeGuardEvent, appendGuardEvent } = require('../dist/events/schema.js')
 
 function getDiff(base, head) {
   const ZERO_SHA = '0000000000000000000000000000000000000000'
@@ -71,6 +72,17 @@ function main() {
   if (hits.length === 0) {
     process.stdout.write('[agent-loop-guard] no suspicious patterns found\n')
     process.exit(0)
+  }
+
+  const hitsByFile = new Map()
+  for (const hit of hits) {
+    if (!hitsByFile.has(hit.file)) hitsByFile.set(hit.file, [])
+    hitsByFile.get(hit.file).push({ rule_id: hit.ruleId, category: hit.category })
+  }
+  for (const [file, findings] of hitsByFile) {
+    appendGuardEvent(
+      normalizeGuardEvent({ source: 'ci', event: 'commit-scan', file_path: file, findings })
+    )
   }
 
   process.stderr.write('[agent-loop-guard] suspicious pattern(s) found in diff\n')

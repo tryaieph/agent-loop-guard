@@ -11,11 +11,12 @@
   "files": [
     "dist",
     "hooks",
-    "bin"
+    "bin",
+    "adapters"
   ],
   "scripts": {
     "build": "tsc -p ./",
-    "test": "jest && node --test hooks/cursor/extract.test.mjs hooks/cursor/post-tool-use-exit.test.mjs hooks/pre-tool-use-loop-breaker.test.mjs",
+    "test": "jest && node --test hooks/cursor/extract.test.mjs hooks/cursor/post-tool-use-exit.test.mjs hooks/pre-tool-use-loop-breaker.test.mjs hooks/cursor/cursor-hook.test.mjs",
     "setup:cursor": "node scripts/setup-cursor.mjs project",
     "setup:cursor:user": "node scripts/setup-cursor.mjs user",
     "setup:claude": "node scripts/setup-claude.mjs user",

@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { formatFlagWarning } from './_shared.mjs'
@@ -8,6 +10,9 @@ import { formatFlagWarning } from './_shared.mjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const cursorHook = path.join(__dirname, 'post-tool-use-guard.mjs')
 const claudeHook = path.join(__dirname, '..', 'post-tool-use-guard.mjs')
+// Match cases append a GuardEvent to <cwd>/.agent-loop-guard/events.jsonl;
+// isolate that write from the real repo root with a scratch cwd.
+const scratchCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-loop-guard-post-tool-use-'))
 
 const evilPayload = JSON.stringify({
   tool_name: 'Write',
@@ -47,7 +52,7 @@ test('formatFlagWarning uses standard message', () => {
 })
 
 test('cursor post-tool-use-guard: match exits 2 with stderr flag', () => {
-  const result = spawnSync('node', [cursorHook], { input: evilPayload, encoding: 'utf8' })
+  const result = spawnSync('node', [cursorHook], { input: evilPayload, encoding: 'utf8', cwd: scratchCwd })
   assert.equal(result.status, 2)
   assert.equal(result.stdout, '')
   assert.match(result.stderr, /agent-loop-guard: suspicious pattern detected and flagged after write/)
@@ -62,7 +67,7 @@ test('cursor post-tool-use-guard: clean content exits 0', () => {
 })
 
 test('claude post-tool-use-guard: match exits 2 with stderr flag', () => {
-  const result = spawnSync('node', [claudeHook], { input: claudeEvilPayload, encoding: 'utf8' })
+  const result = spawnSync('node', [claudeHook], { input: claudeEvilPayload, encoding: 'utf8', cwd: scratchCwd })
   assert.equal(result.status, 2)
   assert.match(result.stderr, /rule: encoded_exec_eval_atob/)
 })

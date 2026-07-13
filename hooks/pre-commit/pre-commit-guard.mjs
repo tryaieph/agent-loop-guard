@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../../dist/output/maliciousCodeDetector.js')
+const { normalizeGuardEvent, appendGuardEvent } = require('../../dist/events/schema.js')
 
 function getStagedDiff() {
   return execFileSync(
@@ -67,6 +68,17 @@ function main() {
 
   if (hits.length === 0) {
     process.exit(0)
+  }
+
+  const hitsByFile = new Map()
+  for (const hit of hits) {
+    if (!hitsByFile.has(hit.file)) hitsByFile.set(hit.file, [])
+    hitsByFile.get(hit.file).push({ rule_id: hit.ruleId, category: hit.category })
+  }
+  for (const [file, findings] of hitsByFile) {
+    appendGuardEvent(
+      normalizeGuardEvent({ source: 'pre-commit', event: 'commit-scan', file_path: file, findings })
+    )
   }
 
   process.stderr.write('[agent-loop-guard] commit rejected: suspicious pattern(s) in staged changes\n')
