@@ -9,6 +9,11 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { detectMaliciousCode } = require('../dist/output/maliciousCodeDetector.js')
 const { normalizeGuardEvent, appendGuardEvent } = require('../dist/events/schema.js')
+const { isFileExcludedFromScan, loadScanAllowlist } = require('../dist/security/scanAllowlist.js')
+
+function getRepoRoot() {
+  return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim()
+}
 
 function getDiff(base, head) {
   const ZERO_SHA = '0000000000000000000000000000000000000000'
@@ -24,12 +29,10 @@ function getDiff(base, head) {
 }
 
 // Test fixtures and Markdown docs intentionally embed malicious-looking
-// pattern strings as literal example/test input, so they are excluded from
-// the scan to avoid the guard flagging its own test corpus or documentation
-// examples as a false positive.
-const TEST_FILE_RE = /\.(test|spec)\.[cm]?[jt]sx?$|\.md$/
-
-function extractAddedLines(diffText) {
+// pattern strings as literal example/test input; demo assets registered in
+// .agent-loop-guard/scan-allowlist.json do the same. Both are excluded from
+// the scan by path, not by weakening detection rules.
+function extractAddedLines(diffText, allowlist) {
   const lines = diffText.split('\n')
   const added = []
   let currentFile = '(unknown)'
@@ -37,7 +40,7 @@ function extractAddedLines(diffText) {
   for (const line of lines) {
     if (line.startsWith('+++ ')) {
       currentFile = line.slice(4).replace(/^b\//, '')
-      skipFile = TEST_FILE_RE.test(currentFile)
+      skipFile = isFileExcludedFromScan(currentFile, allowlist)
       continue
     }
     if (line.startsWith('+++') || line.startsWith('---')) continue
@@ -53,14 +56,17 @@ function main() {
   const [base, head] = process.argv.slice(2)
 
   let diffText
+  let repoRoot
   try {
     diffText = getDiff(base, head)
+    repoRoot = getRepoRoot()
   } catch (err) {
     process.stderr.write(`[agent-loop-guard] failed to read diff: ${err.message}\n`)
     process.exit(1)
   }
 
-  const addedLines = extractAddedLines(diffText)
+  const allowlist = loadScanAllowlist(repoRoot)
+  const addedLines = extractAddedLines(diffText, allowlist)
   const hits = []
   for (const { file, content } of addedLines) {
     const result = detectMaliciousCode(content)
