@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const guardRoot = path.resolve(__dirname, '..')
-const cmd = (rel) => `node ${path.join(guardRoot, rel)}`
+// Absolute node + script paths so hooks fire even when the editor launches
+// Claude Code without inheriting a shell PATH (e.g. GUI app launch).
+const cmd = (rel) => `${process.execPath} ${path.join(guardRoot, rel)}`
 
 const ourHooks = {
   PreToolUse: [

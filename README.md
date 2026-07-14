@@ -7,7 +7,7 @@ Code-only** — hooks are verified on Claude Code and Cursor; **git pre-commit**
 and **GitHub Actions** inspect the diff, so they work no matter which agent
 wrote the code.
 
-✓ 160 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
+✓ 165 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
 ## Quick Start
 
@@ -224,8 +224,17 @@ delete .agent-loop-guard/state/ or run agent-loop-guard reset`).
 Halts further tool calls after thresholds are exceeded.
 
 Verified on **Claude Code CLI (interactive and non-interactive modes)**.
-Cursor's built-in agent is out of scope (hook behavior differs). No dollar
-or token cost estimation. Manual acceptance steps:
+`setup:claude` / `setup:claude:project` register hooks via
+`~/.claude/settings.json` (or `./.claude/settings.json`) using an **absolute
+node binary path + absolute script path** (`process.execPath`, not a bare
+`node`), so the hook command does not depend on the launching process
+inheriting a shell `PATH`. Since Claude Code's VS Code extension and
+JetBrains plugin read hooks from the same `settings.json` mechanism, they are
+expected to fire identically by design — **however this has not been
+verified on an actual VS Code/JetBrains install; only the Claude Code CLI
+path above is verified.** Cursor's built-in agent is out of scope (hook
+behavior differs; see **Cursor** below, which uses `hooks.json` instead). No
+dollar or token cost estimation. Manual acceptance steps:
 [docs/testing.md](docs/testing.md).
 
 **UserPromptSubmit** (input, warning only):
