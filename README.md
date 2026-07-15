@@ -7,7 +7,7 @@ Code-only** — hooks are verified on Claude Code and Cursor; **git pre-commit**
 and **GitHub Actions** inspect the diff, so they work no matter which agent
 wrote the code.
 
-✓ 165 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
+✓ 166 tests pass · ✓ 0 runtime dependencies · ✓ no network calls in detection runtime
 
 ## Quick Start
 
@@ -209,7 +209,11 @@ add alongside pattern hooks in `.claude/settings.json`:
 
 Optional limits in `.agent-loop-guard/config.json` (read once per hook
 invocation; defaults `maxToolCallsPerSession: 150`, `maxEditsPerFile: 15`;
-set a limit to `0` to disable that counter):
+set a limit to `0` to disable that counter). `.agent-loop-guard/config.json`
+is tracked by git (only `.agent-loop-guard/state/` and `events.jsonl` are
+gitignored), so **raising a limit is only possible by committing a change to
+this file** — there is no environment-variable override, so a limit change
+always shows up in `git log` / code review:
 
 ```json
 {
@@ -219,8 +223,12 @@ set a limit to `0` to disable that counter):
 ```
 
 On trip: exit **`2`**, stderr
-(`Loop breaker tripped: <reason>. Review the session transcript. Reset:
-delete .agent-loop-guard/state/ or run agent-loop-guard reset`).
+(`Loop breaker tripped: <reason>. Review the session transcript.
+Breakdown: <total> tool call(s) total (<tool>: <count>, ...) over
+<firstCallAt> to <trippedAt>. Reset: delete .agent-loop-guard/state/ or run
+agent-loop-guard reset`). The breakdown line is derived entirely from counters
+already kept in session state (total calls, per-tool-name counts, first call
+timestamp) — no extra measurement was added to produce it.
 Halts further tool calls after thresholds are exceeded.
 
 Verified on **Claude Code CLI (interactive and non-interactive modes)**.

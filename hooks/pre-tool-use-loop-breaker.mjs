@@ -30,7 +30,7 @@ process.stdin.on('end', () => {
       }),
       cwd
     )
-    const message = formatDenyMessage(result.reason ?? 'threshold exceeded')
+    const message = formatDenyMessage(result.reason ?? 'threshold exceeded', result.breakdown)
     process.stderr.write(`${formatStderrLineForTty(message)}\n`)
     process.exit(2)
   }

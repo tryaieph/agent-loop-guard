@@ -58,6 +58,8 @@ test('PreToolUse hook: over edit limit exits 2 with deny message', () => {
   assert.equal(blocked.status, 2)
   assert.match(blocked.stderr, /Loop breaker tripped:/)
   assert.match(blocked.stderr, /agent-loop-guard reset/)
+  assert.match(blocked.stderr, /Breakdown: 2 tool call\(s\) total/)
+  assert.match(blocked.stderr, /Write: 2/)
   assert.equal(fs.existsSync(file), false)
 })
 

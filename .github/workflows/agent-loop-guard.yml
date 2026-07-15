@@ -38,3 +38,6 @@ jobs:
 
       - name: Scan diff for suspicious patterns
         run: node ci/scan-diff.mjs "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
+
+      - name: Check README claims match actual test count
+        run: node scripts/check-claims.mjs

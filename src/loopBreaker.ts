@@ -20,8 +20,17 @@ export interface LoopBreakerConfig {
 export interface SessionState {
   toolCallCount: number
   editCountsByFile: Record<string, number>
+  toolCallCountsByTool: Record<string, number>
+  firstCallAt?: string
   trippedAt?: string
   tripReason?: string
+}
+
+export interface TripBreakdown {
+  totalToolCalls: number
+  toolCallCountsByTool: Record<string, number>
+  firstCallAt?: string
+  trippedAt: string
 }
 
 export interface PreToolUsePayload {
@@ -35,6 +44,7 @@ export interface PreToolUseResult {
   deny: boolean
   reason?: string
   exitCode: 0 | 2
+  breakdown?: TripBreakdown
 }
 
 function guardRoot(cwd: string): string {
@@ -88,7 +98,16 @@ export function loadConfig(
 }
 
 export function emptyState(): SessionState {
-  return { toolCallCount: 0, editCountsByFile: {} }
+  return { toolCallCount: 0, editCountsByFile: {}, toolCallCountsByTool: {} }
+}
+
+export function buildTripBreakdown(state: SessionState): TripBreakdown {
+  return {
+    totalToolCalls: state.toolCallCount,
+    toolCallCountsByTool: state.toolCallCountsByTool,
+    firstCallAt: state.firstCallAt,
+    trippedAt: state.trippedAt ?? new Date().toISOString(),
+  }
 }
 
 export function loadState(
@@ -103,6 +122,8 @@ export function loadState(
     return {
       toolCallCount: Number(parsed.toolCallCount) || 0,
       editCountsByFile: parsed.editCountsByFile ?? {},
+      toolCallCountsByTool: parsed.toolCallCountsByTool ?? {},
+      firstCallAt: parsed.firstCallAt,
       trippedAt: parsed.trippedAt,
       tripReason: parsed.tripReason,
     }
@@ -131,8 +152,24 @@ export function extractFilePath(payload: PreToolUsePayload): string | null {
   return typeof filePath === 'string' && filePath.length > 0 ? filePath : null
 }
 
-export function formatDenyMessage(reason: string): string {
-  return `Loop breaker tripped: ${reason}. Review the session transcript.\n${DENY_RESET_HINT}`
+export function formatDenyMessage(reason: string, breakdown?: TripBreakdown): string {
+  const lines = [`Loop breaker tripped: ${reason}. Review the session transcript.`]
+  if (breakdown) {
+    const byTool = Object.entries(breakdown.toolCallCountsByTool)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `${name}: ${count}`)
+      .join(', ')
+    const period = breakdown.firstCallAt
+      ? `${breakdown.firstCallAt} to ${breakdown.trippedAt}`
+      : breakdown.trippedAt
+    lines.push(
+      `Breakdown: ${breakdown.totalToolCalls} tool call(s) total` +
+        (byTool ? ` (${byTool})` : '') +
+        ` over ${period}.`
+    )
+  }
+  lines.push(DENY_RESET_HINT)
+  return lines.join('\n')
 }
 
 export function formatStderrLineForTty(message: string, isTty = process.stderr.isTTY): string {
@@ -178,23 +215,28 @@ export function processPreToolUse(
 
   if (state.trippedAt) {
     const reason = state.tripReason ?? 'session already tripped'
-    return { deny: true, reason, exitCode: 2 }
+    return { deny: true, reason, exitCode: 2, breakdown: buildTripBreakdown(state) }
   }
 
+  const now = new Date().toISOString()
+  if (state.toolCallCount === 0) {
+    state.firstCallAt = now
+  }
   state.toolCallCount += 1
 
   const toolName = payload.tool_name ?? ''
   const filePath = extractFilePath(payload)
+  state.toolCallCountsByTool[toolName] = (state.toolCallCountsByTool[toolName] ?? 0) + 1
   if (filePath && EDIT_TOOLS.has(toolName)) {
     state.editCountsByFile[filePath] = (state.editCountsByFile[filePath] ?? 0) + 1
   }
 
   const verdict = evaluateAfterIncrement(state, config, toolName, filePath)
   if (verdict.trip) {
-    state.trippedAt = new Date().toISOString()
+    state.trippedAt = now
     state.tripReason = verdict.reason
     saveState(cwd, sessionId, state)
-    return { deny: true, reason: verdict.reason, exitCode: 2 }
+    return { deny: true, reason: verdict.reason, exitCode: 2, breakdown: buildTripBreakdown(state) }
   }
 
   saveState(cwd, sessionId, state)

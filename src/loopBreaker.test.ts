@@ -67,7 +67,7 @@ describe('loopBreaker state', () => {
   test('reset removes state directory', () => {
     const cwd = tempDir()
     const sessionId = 'sess-1'
-    saveState(cwd, sessionId, { toolCallCount: 1, editCountsByFile: {} })
+    saveState(cwd, sessionId, { toolCallCount: 1, editCountsByFile: {}, toolCallCountsByTool: {} })
     expect(fs.existsSync(statePathFor(cwd, sessionId))).toBe(true)
     resetState(cwd)
     expect(fs.existsSync(path.join(cwd, '.agent-loop-guard/state'))).toBe(false)
@@ -107,9 +107,14 @@ describe('processPreToolUse', () => {
     const tripped = processPreToolUse(basePayload({ cwd }), cwd)
     expect(tripped.deny).toBe(true)
     expect(tripped.reason).toMatch(/session tool call limit exceeded/)
+    expect(tripped.breakdown?.totalToolCalls).toBe(3)
+    expect(tripped.breakdown?.toolCallCountsByTool).toEqual({ Bash: 3 })
+    expect(tripped.breakdown?.firstCallAt).toBeTruthy()
+    expect(tripped.breakdown?.trippedAt).toBeTruthy()
 
     const again = processPreToolUse(basePayload({ cwd }), cwd)
     expect(again.deny).toBe(true)
+    expect(again.breakdown?.totalToolCalls).toBe(3)
     expect(loadState(cwd, sessionId).trippedAt).toBeTruthy()
   })
 
@@ -146,6 +151,19 @@ describe('processPreToolUse', () => {
     expect(msg).toContain('Start a new session')
     expect(msg).toContain('.agent-loop-guard/state/')
     expect(msg).toMatch(/\nStart a new session/)
+  })
+
+  test('deny message includes tool call breakdown when provided', () => {
+    const msg = formatDenyMessage('session tool call limit exceeded (3 > 2)', {
+      totalToolCalls: 3,
+      toolCallCountsByTool: { Bash: 2, Write: 1 },
+      firstCallAt: '2026-07-15T10:00:00.000Z',
+      trippedAt: '2026-07-15T10:05:00.000Z',
+    })
+    expect(msg).toContain('Breakdown: 3 tool call(s) total')
+    expect(msg).toContain('Bash: 2')
+    expect(msg).toContain('Write: 1')
+    expect(msg).toContain('2026-07-15T10:00:00.000Z to 2026-07-15T10:05:00.000Z')
   })
 })
 
